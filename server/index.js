@@ -22,7 +22,83 @@ app.get("/", (req, res) => {
 app.get("/api/parts", (req, res) => {
   res.json(parts);
 });
+const issues = [];
+let nextIssueId = 1;
 
+// Today's date as YYYY-MM-DD in Indian time
+function today() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+}
+
+app.get("/api/issues", (req, res) => {
+  res.json(issues);
+});
+
+app.post("/api/issues", (req, res) => {
+  const name = String(req.body.name || "").trim();
+  const regNo = String(req.body.regNo || "").trim().toUpperCase();
+  const dueDate = String(req.body.dueDate || "");
+  const qty = Number(req.body.qty);
+
+  if (!name) {
+    return res.status(400).json({ error: "Member name is required" });
+  }
+  if (!/^[A-Z0-9]{6,15}$/.test(regNo)) {
+    return res.status(400).json({ error: "Enter a valid registration number" });
+  }
+  if (!dueDate || dueDate < today()) {
+    return res.status(400).json({ error: "Due date must be today or later" });
+  }
+  if (!Number.isInteger(qty) || qty < 1) {
+    return res.status(400).json({ error: "Quantity must be a whole number, at least 1" });
+  }
+
+  const part = parts.find((p) => p.id === Number(req.body.partId));
+  if (!part) {
+    return res.status(404).json({ error: "Please select a valid part" });
+  }
+  if (part.available < qty) {
+    return res.status(400).json({
+      error: `Only ${part.available} ${part.name} available, but you asked for ${qty}`,
+    });
+  }
+
+  part.available -= qty;
+
+  const issue = {
+    id: nextIssueId++,
+    name,
+    regNo,
+    dueDate,
+    issuedOn: today(),
+    items: [{ partId: part.id, partName: part.name, qty }],
+    status: "issued",
+    returnedOn: null,
+  };
+  issues.push(issue);
+
+  res.status(201).json(issue);
+});
+
+app.patch("/api/issues/:id/return", (req, res) => {
+  const issue = issues.find((i) => i.id === Number(req.params.id));
+  if (!issue) {
+    return res.status(404).json({ error: "Issue not found" });
+  }
+  if (issue.status === "returned") {
+    return res.status(400).json({ error: "This issue is already returned" });
+  }
+
+  for (const item of issue.items) {
+    const part = parts.find((p) => p.id === item.partId);
+    part.available += item.qty;
+  }
+
+  issue.status = "returned";
+  issue.returnedOn = today();
+
+  res.json(issue);
+});
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
