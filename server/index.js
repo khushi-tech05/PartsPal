@@ -6,7 +6,7 @@ app.use(cors());
 app.use(express.json());
 
 const parts = [
-  { id: 1, name: "Arduino Uno", category: "Microcontroller", total: 10, available: 10 },
+  { id: 1, name: "Arduino Uno", category: "Microcontroller", total: 10, available: 9 },
   { id: 2, name: "IR Sensor", category: "Sensor", total: 20, available: 20 },
   { id: 3, name: "L298N Motor Driver", category: "Motor Driver", total: 3, available: 3 },
   { id: 4, name: "ESP32", category: "Microcontroller", total: 6, available: 6 },
@@ -22,8 +22,20 @@ app.get("/", (req, res) => {
 app.get("/api/parts", (req, res) => {
   res.json(parts);
 });
-const issues = [];
-let nextIssueId = 1;
+const issues = [
+  {
+    id: 1,
+    name: "Sample Member",
+    regNo: "23BCE0001",
+    dueDate: "2026-10-01",
+    issuedOn: "2026-09-24",
+    kitName: null,
+    items: [{ partId: 1, partName: "Arduino Uno", qty: 1 }],
+    status: "issued",
+    returnedOn: null,
+  },
+];
+let nextIssueId = 2;
 
 // Today's date as YYYY-MM-DD in Indian time
 function today() {
@@ -31,7 +43,15 @@ function today() {
 }
 
 app.get("/api/issues", (req, res) => {
-  res.json(issues);
+  const withFlag = issues.map((issue) => ({
+    ...issue,
+    overdue: issue.status === "issued" && issue.dueDate < today(),
+  }));
+
+  if (req.query.status === "overdue") {
+    return res.json(withFlag.filter((i) => i.overdue));
+  }
+  res.json(withFlag);
 });
 
 const kits = [
@@ -170,6 +190,35 @@ app.patch("/api/issues/:id/return", (req, res) => {
   issue.returnedOn = today();
 
   res.json(issue);
+});
+app.post("/api/parts", (req, res) => {
+  const name = String(req.body.name || "").trim();
+  const category = String(req.body.category || "").trim();
+  const total = Number(req.body.total);
+
+  if (!name) {
+    return res.status(400).json({ error: "Part name is required" });
+  }
+  if (!category) {
+    return res.status(400).json({ error: "Category is required" });
+  }
+  if (!Number.isInteger(total) || total < 1) {
+    return res.status(400).json({ error: "Total must be a whole number, at least 1" });
+  }
+  if (parts.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
+    return res.status(400).json({ error: "A part with this name already exists" });
+  }
+
+  const part = {
+    id: Math.max(0, ...parts.map((p) => p.id)) + 1,
+    name,
+    category,
+    total,
+    available: total,
+  };
+  parts.push(part);
+
+  res.status(201).json(part);
 });
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

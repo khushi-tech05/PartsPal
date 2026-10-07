@@ -9,6 +9,7 @@ function App() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
   const [mode, setMode] = useState("part");
+  const [onlyOverdue, setOnlyOverdue] = useState(false);
   const [form, setForm] = useState({
     partId: "",
     kitId: "",
@@ -17,6 +18,7 @@ function App() {
     regNo: "",
     dueDate: "",
   });
+  const [newPart, setNewPart] = useState({ name: "", category: "", total: 1 });
   const [message, setMessage] = useState(null);
 
   function loadData() {
@@ -31,6 +33,27 @@ function App() {
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
+  }
+
+  function handleNewPartChange(e) {
+    setNewPart({ ...newPart, [e.target.name]: e.target.value });
+  }
+
+  async function handleAddPart(e) {
+    e.preventDefault();
+    const res = await fetch(`${API}/api/parts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newPart),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setMessage({ type: "error", text: data.error });
+      return;
+    }
+    setMessage({ type: "success", text: `Added ${data.name}` });
+    setNewPart({ name: "", category: "", total: 1 });
+    loadData();
   }
 
   async function handleIssue(e) {
@@ -89,9 +112,18 @@ function App() {
 
   const selectedKit = kits.find((k) => k.id === Number(form.kitId));
 
+  const overdueCount = issues.filter((i) => i.overdue).length;
+  const visibleIssues = onlyOverdue ? issues.filter((i) => i.overdue) : issues;
+
   return (
     <div>
       <h1>PartsPal</h1>
+
+      {message && (
+        <p style={{ color: message.type === "error" ? "red" : "green" }}>
+          {message.text}
+        </p>
+      )}
 
       <h2>Inventory</h2>
       <input
@@ -129,6 +161,43 @@ function App() {
         </tbody>
       </table>
       {visibleParts.length === 0 && <p>No parts found.</p>}
+
+      <h3>Add a new part</h3>
+      <form
+        onSubmit={handleAddPart}
+        style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
+      >
+        <input
+          type="text"
+          name="name"
+          placeholder="Part name"
+          value={newPart.name}
+          onChange={handleNewPartChange}
+        />
+        <input
+          type="text"
+          name="category"
+          placeholder="Category"
+          list="category-list"
+          value={newPart.category}
+          onChange={handleNewPartChange}
+        />
+        <datalist id="category-list">
+          {categories
+            .filter((c) => c !== "All")
+            .map((c) => (
+              <option key={c} value={c} />
+            ))}
+        </datalist>
+        <input
+          type="number"
+          name="total"
+          min="1"
+          value={newPart.total}
+          onChange={handleNewPartChange}
+        />
+        <button type="submit">Add part</button>
+      </form>
 
       <h2>Issue</h2>
       <div style={{ marginBottom: 8 }}>
@@ -215,14 +284,24 @@ function App() {
         </p>
       )}
 
-      {message && (
-        <p style={{ color: message.type === "error" ? "red" : "green" }}>
-          {message.text}
-        </p>
-      )}
+      <h2>
+        Who has what{" "}
+        {overdueCount > 0 && (
+          <span style={{ color: "red", fontSize: 16 }}>
+            ({overdueCount} overdue)
+          </span>
+        )}
+      </h2>
+      <label>
+        <input
+          type="checkbox"
+          checked={onlyOverdue}
+          onChange={(e) => setOnlyOverdue(e.target.checked)}
+        />{" "}
+        Show only overdue
+      </label>
 
-      <h2>Who has what</h2>
-      <table border="1" cellPadding="8">
+      <table border="1" cellPadding="8" style={{ marginTop: 12 }}>
         <thead>
           <tr>
             <th>Member</th>
@@ -234,8 +313,11 @@ function App() {
           </tr>
         </thead>
         <tbody>
-          {issues.map((issue) => (
-            <tr key={issue.id}>
+          {visibleIssues.map((issue) => (
+            <tr
+              key={issue.id}
+              style={issue.overdue ? { background: "#ffd6d6" } : {}}
+            >
               <td>{issue.name}</td>
               <td>{issue.regNo}</td>
               <td>
@@ -243,7 +325,13 @@ function App() {
                 {issue.items.map((i) => `${i.partName} x${i.qty}`).join(", ")}
               </td>
               <td>{issue.dueDate}</td>
-              <td>{issue.status}</td>
+              <td>
+                {issue.overdue ? (
+                  <b style={{ color: "red" }}>OVERDUE</b>
+                ) : (
+                  issue.status
+                )}
+              </td>
               <td>
                 {issue.status === "issued" && (
                   <button onClick={() => handleReturn(issue.id)}>Return</button>
@@ -253,7 +341,7 @@ function App() {
           ))}
         </tbody>
       </table>
-      {issues.length === 0 && <p>Nothing issued yet.</p>}
+      {visibleIssues.length === 0 && <p>Nothing to show.</p>}
     </div>
   );
 }
