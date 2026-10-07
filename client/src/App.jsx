@@ -4,11 +4,14 @@ const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 function App() {
   const [parts, setParts] = useState([]);
+  const [kits, setKits] = useState([]);
   const [issues, setIssues] = useState([]);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
+  const [mode, setMode] = useState("part");
   const [form, setForm] = useState({
     partId: "",
+    kitId: "",
     qty: 1,
     name: "",
     regNo: "",
@@ -18,6 +21,7 @@ function App() {
 
   function loadData() {
     fetch(`${API}/api/parts`).then((res) => res.json()).then(setParts);
+    fetch(`${API}/api/kits`).then((res) => res.json()).then(setKits);
     fetch(`${API}/api/issues`).then((res) => res.json()).then(setIssues);
   }
 
@@ -31,10 +35,27 @@ function App() {
 
   async function handleIssue(e) {
     e.preventDefault();
+
+    const body =
+      mode === "kit"
+        ? {
+            kitId: form.kitId,
+            name: form.name,
+            regNo: form.regNo,
+            dueDate: form.dueDate,
+          }
+        : {
+            partId: form.partId,
+            qty: form.qty,
+            name: form.name,
+            regNo: form.regNo,
+            dueDate: form.dueDate,
+          };
+
     const res = await fetch(`${API}/api/issues`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -65,6 +86,8 @@ function App() {
     const matchesCategory = category === "All" || p.category === category;
     return matchesSearch && matchesCategory;
   });
+
+  const selectedKit = kits.find((k) => k.id === Number(form.kitId));
 
   return (
     <div>
@@ -107,26 +130,59 @@ function App() {
       </table>
       {visibleParts.length === 0 && <p>No parts found.</p>}
 
-      <h2>Issue a part</h2>
+      <h2>Issue</h2>
+      <div style={{ marginBottom: 8 }}>
+        <label>
+          <input
+            type="radio"
+            checked={mode === "part"}
+            onChange={() => setMode("part")}
+          />{" "}
+          Single part
+        </label>{" "}
+        <label>
+          <input
+            type="radio"
+            checked={mode === "kit"}
+            onChange={() => setMode("kit")}
+          />{" "}
+          Whole kit
+        </label>
+      </div>
+
       <form
         onSubmit={handleIssue}
         style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
       >
-        <select name="partId" value={form.partId} onChange={handleChange}>
-          <option value="">Select a part</option>
-          {parts.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name} ({p.available} available)
-            </option>
-          ))}
-        </select>
-        <input
-          type="number"
-          name="qty"
-          min="1"
-          value={form.qty}
-          onChange={handleChange}
-        />
+        {mode === "part" ? (
+          <>
+            <select name="partId" value={form.partId} onChange={handleChange}>
+              <option value="">Select a part</option>
+              {parts.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.available} available)
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              name="qty"
+              min="1"
+              value={form.qty}
+              onChange={handleChange}
+            />
+          </>
+        ) : (
+          <select name="kitId" value={form.kitId} onChange={handleChange}>
+            <option value="">Select a kit</option>
+            {kits.map((k) => (
+              <option key={k.id} value={k.id}>
+                {k.name}
+              </option>
+            ))}
+          </select>
+        )}
+
         <input
           type="text"
           name="name"
@@ -149,6 +205,15 @@ function App() {
         />
         <button type="submit">Issue</button>
       </form>
+
+      {mode === "kit" && selectedKit && (
+        <p>
+          This kit contains:{" "}
+          {selectedKit.items
+            .map((i) => `${i.partName} x${i.qty} (${i.available} in stock)`)
+            .join(", ")}
+        </p>
+      )}
 
       {message && (
         <p style={{ color: message.type === "error" ? "red" : "green" }}>
@@ -174,6 +239,7 @@ function App() {
               <td>{issue.name}</td>
               <td>{issue.regNo}</td>
               <td>
+                {issue.kitName ? `${issue.kitName}: ` : ""}
                 {issue.items.map((i) => `${i.partName} x${i.qty}`).join(", ")}
               </td>
               <td>{issue.dueDate}</td>

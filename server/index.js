@@ -8,7 +8,7 @@ app.use(express.json());
 const parts = [
   { id: 1, name: "Arduino Uno", category: "Microcontroller", total: 10, available: 10 },
   { id: 2, name: "IR Sensor", category: "Sensor", total: 20, available: 20 },
-  { id: 3, name: "L298N Motor Driver", category: "Motor Driver", total: 8, available: 8 },
+  { id: 3, name: "L298N Motor Driver", category: "Motor Driver", total: 3, available: 3 },
   { id: 4, name: "ESP32", category: "Microcontroller", total: 6, available: 6 },
   { id: 5, name: "Ultrasonic Sensor", category: "Sensor", total: 12, available: 12 },
   { id: 6, name: "DC Motor", category: "Motor", total: 16, available: 16 },
@@ -34,11 +34,51 @@ app.get("/api/issues", (req, res) => {
   res.json(issues);
 });
 
+const kits = [
+  {
+    id: 1,
+    name: "Line Follower Kit",
+    items: [
+      { partId: 1, qty: 1 },
+      { partId: 2, qty: 2 },
+      { partId: 3, qty: 1 },
+    ],
+  },
+  {
+    id: 2,
+    name: "Obstacle Avoider Kit",
+    items: [
+      { partId: 1, qty: 1 },
+      { partId: 5, qty: 1 },
+      { partId: 3, qty: 1 },
+      { partId: 6, qty: 2 },
+    ],
+  },
+  {
+    id: 3,
+    name: "Servo Starter Kit",
+    items: [
+      { partId: 4, qty: 1 },
+      { partId: 7, qty: 2 },
+    ],
+  },
+];
+
+app.get("/api/kits", (req, res) => {
+  const result = kits.map((kit) => ({
+    ...kit,
+    items: kit.items.map((item) => {
+      const part = parts.find((p) => p.id === item.partId);
+      return { ...item, partName: part.name, available: part.available };
+    }),
+  }));
+  res.json(result);
+});
+
 app.post("/api/issues", (req, res) => {
   const name = String(req.body.name || "").trim();
   const regNo = String(req.body.regNo || "").trim().toUpperCase();
   const dueDate = String(req.body.dueDate || "");
-  const qty = Number(req.body.qty);
 
   if (!name) {
     return res.status(400).json({ error: "Member name is required" });
@@ -49,21 +89,52 @@ app.post("/api/issues", (req, res) => {
   if (!dueDate || dueDate < today()) {
     return res.status(400).json({ error: "Due date must be today or later" });
   }
-  if (!Number.isInteger(qty) || qty < 1) {
-    return res.status(400).json({ error: "Quantity must be a whole number, at least 1" });
+
+  // Work out what is being asked for: a whole kit, or one part
+  let kit = null;
+  let wanted = [];
+
+  if (req.body.kitId) {
+    kit = kits.find((k) => k.id === Number(req.body.kitId));
+    if (!kit) {
+      return res.status(404).json({ error: "Please select a valid kit" });
+    }
+    wanted = kit.items.map((i) => ({ partId: i.partId, qty: i.qty }));
+  } else {
+    const qty = Number(req.body.qty);
+    if (!Number.isInteger(qty) || qty < 1) {
+      return res
+        .status(400)
+        .json({ error: "Quantity must be a whole number, at least 1" });
+    }
+    wanted = [{ partId: Number(req.body.partId), qty }];
   }
 
-  const part = parts.find((p) => p.id === Number(req.body.partId));
-  if (!part) {
-    return res.status(404).json({ error: "Please select a valid part" });
-  }
-  if (part.available < qty) {
-    return res.status(400).json({
-      error: `Only ${part.available} ${part.name} available, but you asked for ${qty}`,
-    });
+  // STEP 1: check every part first. Change nothing yet.
+  const items = [];
+  const problems = [];
+  for (const w of wanted) {
+    const part = parts.find((p) => p.id === w.partId);
+    if (!part) {
+      return res.status(404).json({ error: "Please select a valid part" });
+    }
+    if (part.available < w.qty) {
+      problems.push(`${part.name} (need ${w.qty}, only ${part.available} available)`);
+    }
+    items.push({ partId: part.id, partName: part.name, qty: w.qty });
   }
 
-  part.available -= qty;
+  if (problems.length > 0) {
+    return res
+      .status(400)
+      .json({ error: "Cannot issue. Not enough stock: " + problems.join("; ") });
+  }
+
+  // STEP 2: everything is in stock, so now reduce all the stock
+  for (const item of items) {
+    const part = parts.find((p) => p.id === item.partId);
+    part.available -= item.qty;
+  }
 
   const issue = {
     id: nextIssueId++,
@@ -71,7 +142,8 @@ app.post("/api/issues", (req, res) => {
     regNo,
     dueDate,
     issuedOn: today(),
-    items: [{ partId: part.id, partName: part.name, qty }],
+    kitName: kit ? kit.name : null,
+    items,
     status: "issued",
     returnedOn: null,
   };
