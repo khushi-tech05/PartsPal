@@ -8,6 +8,11 @@ app.use(express.json());
 const parts = [
   { id: 1, name: "Arduino Uno", category: "Microcontroller", total: 10, available: 10 },
   { id: 2, name: "IR Sensor", category: "Sensor", total: 20, available: 20 },
+  { id: 3, name: "L298N Motor Driver", category: "Motor Driver", total: 8, available: 8 },
+  { id: 4, name: "ESP32", category: "Microcontroller", total: 6, available: 6 },
+  { id: 5, name: "Ultrasonic Sensor", category: "Sensor", total: 12, available: 12 },
+  { id: 6, name: "DC Motor", category: "Motor", total: 16, available: 16 },
+  { id: 7, name: "Servo Motor", category: "Motor", total: 9, available: 9 },
 ];
 
 app.get("/", (req, res) => {
