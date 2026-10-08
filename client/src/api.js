@@ -3,10 +3,12 @@ export const API = (
 ).replace(/\/+$/, "");
 
 export async function request(path, options = {}) {
-  const res = await fetch(`${API}${path}`, {
-    ...options,
-    headers: options.body ? { "Content-Type": "application/json" } : {},
-  });
+  const headers = { ...(options.headers || {}) };
+  if (options.body) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  const res = await fetch(`${API}${path}`, { ...options, headers });
 
   let data = null;
   try {

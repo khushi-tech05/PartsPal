@@ -4,6 +4,18 @@ const cors = require("cors");
 const app = express();
 app.use(cors());
 app.use(express.json());
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123";
+
+function requireAdmin(req, res, next) {
+  if (req.headers["x-admin-password"] !== ADMIN_PASSWORD) {
+    return res.status(401).json({ error: "Wrong or missing admin password" });
+  }
+  next();
+}
+
+app.post("/api/login", requireAdmin, (req, res) => {
+  res.json({ ok: true });
+});
 
 const parts = [
   { id: 1, name: "Arduino Uno", category: "Microcontroller", total: 10, available: 9 },
@@ -191,7 +203,7 @@ app.patch("/api/issues/:id/return", (req, res) => {
 
   res.json(issue);
 });
-app.post("/api/parts", (req, res) => {
+app.post("/api/parts", requireAdmin, (req, res) => {
   const name = String(req.body.name || "").trim();
   const category = String(req.body.category || "").trim();
   const total = Number(req.body.total);
