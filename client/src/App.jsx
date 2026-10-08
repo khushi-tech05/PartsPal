@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { request } from "./api";
+import Logo from "./components/Logo";
 import RoleSelect from "./components/RoleSelect";
 import Inventory from "./components/Inventory";
 import AddPartForm from "./components/AddPartForm";
@@ -9,14 +10,14 @@ import IssuesTable from "./components/IssuesTable";
 // The sidebar buttons for each role
 const menus = {
   admin: [
-    { id: "inventory", label: "Inventory" },
-    { id: "addPart", label: "Add part" },
-    { id: "issues", label: "Who has what" },
+    { id: "inventory", label: "Inventory", icon: "ti-box" },
+    { id: "addPart", label: "Add part", icon: "ti-plus" },
+    { id: "issues", label: "Who has what", icon: "ti-list-details" },
   ],
   user: [
-    { id: "inventory", label: "Inventory" },
-    { id: "issue", label: "Issue" },
-    { id: "issues", label: "Who has what" },
+    { id: "inventory", label: "Inventory", icon: "ti-box" },
+    { id: "issue", label: "Issue", icon: "ti-package" },
+    { id: "issues", label: "Who has what", icon: "ti-list-details" },
   ],
 };
 
@@ -85,41 +86,45 @@ function App() {
   const overdueCount = issues.filter((i) => i.overdue).length;
 
   return (
-    <div className="container">
-      <header>
-        <h1>PartsPal</h1>
-        <p className="muted">Robotics club lab inventory and lending</p>
+    <div className="app">
+      <header className="topbar">
+        <div className="brand-small">
+          <Logo size={28} />
+          <span className="mark">
+            Parts<span className="accent">Pal</span>
+          </span>
+        </div>
+        <div className="who">
+          <span className={role === "admin" ? "badge violet" : "badge cyan"}>
+            {role === "admin" ? "Admin" : "User"}
+          </span>
+          <button className="small" onClick={handleSwitchRole}>
+            <i className="ti ti-switch-horizontal"></i> Switch role
+          </button>
+        </div>
       </header>
 
       <div className="layout">
         <nav className="sidebar">
-          <p className="role-label">
-            Logged in as {role === "admin" ? "Admin" : "User"}
-          </p>
-
+          <p className="menu-label muted">Menu</p>
           {menus[role].map((item) => (
             <button
               key={item.id}
-              className={tab === item.id ? "tab active" : "tab"}
+              className={tab === item.id ? "nav-btn active" : "nav-btn"}
               onClick={() => openTab(item.id)}
             >
+              <i className={`ti ${item.icon}`}></i>
               {item.label}
               {item.id === "issues" && overdueCount > 0 && (
                 <span className="dot">{overdueCount}</span>
               )}
             </button>
           ))}
-
-          <button className="switch" onClick={handleSwitchRole}>
-            Switch role
-          </button>
         </nav>
 
         <main className="content">
           {message && (
-            <div
-              className={message.type === "error" ? "alert error" : "alert success"}
-            >
+            <div className={message.type === "error" ? "alert error" : "alert success"}>
               {message.text}
             </div>
           )}
@@ -130,7 +135,9 @@ function App() {
             </p>
           )}
 
-          {tab === "inventory" && <Inventory parts={parts} />}
+          {tab === "inventory" && (
+            <Inventory parts={parts} overdueCount={overdueCount} />
+          )}
 
           {tab === "addPart" && (
             <AddPartForm

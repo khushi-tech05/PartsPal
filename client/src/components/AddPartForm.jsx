@@ -27,35 +27,43 @@ function AddPartForm({ categories, adminPassword, onChanged, showMessage }) {
   return (
     <div className="card">
       <h2>Add a new part</h2>
-      <form className="form-row" onSubmit={handleSubmit}>
-        <input
-          type="text"
-          name="name"
-          placeholder="Part name"
-          value={form.name}
-          onChange={handleChange}
-        />
-        <input
-          type="text"
-          name="category"
-          placeholder="Category"
-          list="category-list"
-          value={form.category}
-          onChange={handleChange}
-        />
-        <datalist id="category-list">
-          {categories.map((c) => (
-            <option key={c} value={c} />
-          ))}
-        </datalist>
-        <input
-          type="number"
-          name="total"
-          min="1"
-          value={form.total}
-          onChange={handleChange}
-        />
-        <button type="submit">Add part</button>
+      <p className="muted note">
+        <i className="ti ti-shield-lock"></i> Only admins can see this page
+      </p>
+
+      <form onSubmit={handleSubmit}>
+        <div className="form-grid">
+          <input
+            type="text"
+            name="name"
+            placeholder="Part name"
+            value={form.name}
+            onChange={handleChange}
+          />
+          <input
+            type="text"
+            name="category"
+            placeholder="Category"
+            list="category-list"
+            value={form.category}
+            onChange={handleChange}
+          />
+          <datalist id="category-list">
+            {categories.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
+          <input
+            type="number"
+            name="total"
+            min="1"
+            value={form.total}
+            onChange={handleChange}
+          />
+        </div>
+        <button type="submit" className="primary">
+          <i className="ti ti-plus"></i> Add part
+        </button>
       </form>
     </div>
   );

@@ -41,35 +41,37 @@ function IssueForm({ parts, kits, onChanged, showMessage }) {
     }
   }
 
-  const selectedKit = kits.find((k) => k.id === Number(form.kitId));
-
   return (
     <div className="card">
       <h2>Issue to a member</h2>
 
-      <div className="mode-switch">
-        <label>
-          <input
-            type="radio"
-            checked={mode === "part"}
-            onChange={() => setMode("part")}
-          />{" "}
+      {/* Switch between a single part and a whole kit */}
+      <div className="seg-row">
+        <button
+          type="button"
+          className={mode === "part" ? "seg active" : "seg"}
+          onClick={() => setMode("part")}
+        >
           Single part
-        </label>
-        <label>
-          <input
-            type="radio"
-            checked={mode === "kit"}
-            onChange={() => setMode("kit")}
-          />{" "}
+        </button>
+        <button
+          type="button"
+          className={mode === "kit" ? "seg active" : "seg"}
+          onClick={() => setMode("kit")}
+        >
           Whole kit
-        </label>
+        </button>
       </div>
 
-      <form className="form-row" onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit}>
         {mode === "part" ? (
-          <>
-            <select name="partId" value={form.partId} onChange={handleChange}>
+          <div className="form-row">
+            <select
+              name="partId"
+              value={form.partId}
+              onChange={handleChange}
+              style={{ flex: 1 }}
+            >
               <option value="">Select a part</option>
               {parts.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -83,50 +85,70 @@ function IssueForm({ parts, kits, onChanged, showMessage }) {
               min="1"
               value={form.qty}
               onChange={handleChange}
+              style={{ width: 90 }}
             />
-          </>
+          </div>
         ) : (
-          <select name="kitId" value={form.kitId} onChange={handleChange}>
-            <option value="">Select a kit</option>
-            {kits.map((k) => (
-              <option key={k.id} value={k.id}>
-                {k.name}
-              </option>
-            ))}
-          </select>
+          <div>
+            {/* One clickable card for each kit */}
+            {kits.map((kit) => {
+              const isShort = kit.items.some((i) => i.available < i.qty);
+              const isSelected = Number(form.kitId) === kit.id;
+
+              return (
+                <button
+                  type="button"
+                  key={kit.id}
+                  className={isSelected ? "kit-card selected" : "kit-card"}
+                  onClick={() => setForm({ ...form, kitId: kit.id })}
+                >
+                  <div className="kit-title">
+                    <span>{kit.name}</span>
+                    {isShort && <span className="badge red">Short on stock</span>}
+                  </div>
+                  <div>
+                    {kit.items.map((i) => (
+                      <span
+                        key={i.partId}
+                        className={i.available < i.qty ? "mini short" : "mini"}
+                      >
+                        {i.partName} x{i.qty}
+                      </span>
+                    ))}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         )}
 
-        <input
-          type="text"
-          name="name"
-          placeholder="Member name"
-          value={form.name}
-          onChange={handleChange}
-        />
-        <input
-          type="text"
-          name="regNo"
-          placeholder="Registration number"
-          value={form.regNo}
-          onChange={handleChange}
-        />
-        <input
-          type="date"
-          name="dueDate"
-          value={form.dueDate}
-          onChange={handleChange}
-        />
-        <button type="submit">Issue</button>
-      </form>
+        <div className="form-grid">
+          <input
+            type="text"
+            name="name"
+            placeholder="Member name"
+            value={form.name}
+            onChange={handleChange}
+          />
+          <input
+            type="text"
+            name="regNo"
+            placeholder="Registration number"
+            value={form.regNo}
+            onChange={handleChange}
+          />
+          <input
+            type="date"
+            name="dueDate"
+            value={form.dueDate}
+            onChange={handleChange}
+          />
+        </div>
 
-      {mode === "kit" && selectedKit && (
-        <p className="muted">
-          This kit contains:{" "}
-          {selectedKit.items
-            .map((i) => `${i.partName} x${i.qty} (${i.available} in stock)`)
-            .join(", ")}
-        </p>
-      )}
+        <button type="submit" className="primary">
+          <i className="ti ti-check"></i> Issue
+        </button>
+      </form>
     </div>
   );
 }
